@@ -74,10 +74,14 @@ class RawData(object): # pylint:disable=R0903
     @param binary: A string containing binary data.
     @param data_format: A DataFormat object.
     """
+    logging.info('data format = %r', data_format.__dict__)
+    logging.info('data range = %r', data_format.data_range)
     self.data_format = data_format
     self.channel_data = [[] for _ in xrange(self.data_format.num_channels)]
     self._read_binary(binary)
     self.num_of_samples = len(self.channel_data[0])
+    logging.info('data duration = %r secs',
+                 float(self.num_of_samples) / data_format.sampling_rate)
 
 
   def _read_one_sample(self, handle):
