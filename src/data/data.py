@@ -88,3 +88,17 @@ class RawData(object):
         channel_index = ((channel_index + 1) %
                          self.data_format.num_channels)
         number = self._read_one_sample(f)
+
+
+class OneChannelRawData(object): # pylint:disable=R0903
+  """A 1-channel raw data."""
+  def __init__(self, raw_data, channel_index):
+    """Creates a OneChannelRawData from RawData.
+
+    @param raw_data: A RawData object.
+    @channel_index: The selected channel. 0 for the first channel.
+
+    """
+    self.samples = raw_data.channel_data[channel_index]
+    self.sampling_rate = raw_data.data_format.sampling_rate
+    self.data_range = raw_data.data_format.data_range
