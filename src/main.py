@@ -1,26 +1,34 @@
 #!/usr/bin/python
 """The main entry point."""
 
+import argparse
+import cStringIO
 import logging
 import os
-import cStringIO
 import subprocess
-import argparse
 
 from data import data
+from waveform import waveform
+
 
 def show_basic_function():
+  """Show basic function with test data."""
   src_folder = os.path.dirname(os.path.realpath(__file__))
   input_file = os.path.join(src_folder, '..', 'test_data', '1hz.raw')
   raw_data = read_raw_data(input_file)
-
+  one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
   width, height = get_window_size()
-  down_samples = get_down_sample(raw_data, width)
-  canvas = draw_down_sample(down_samples, height, 1<<16)
+  wave = waveform.Waveform(one_channel_raw_data, width, height)
+
+  canvas = draw_down_sample(wave.wave_samples, height)
   print_canvas(canvas)
 
 
 def get_window_size():
+  """Gets window size.
+
+  @returns: A tuple (width, height).
+  """
   # Must leave space for user prompt
   width = int(subprocess.check_output(['tput', 'cols']).strip()) - 30
   height = int(subprocess.check_output(['tput', 'lines']).strip()) - 5
@@ -28,10 +36,20 @@ def get_window_size():
   return width, height
 
 
+#TODO Set format from command line.
 def read_raw_data(input_file):
+  """Read a file.
+
+  The file data format is fixed to 1 channel, 16 bit signed int,
+  48000 Hz sampling rate.
+
+  @param input_file: The path to the input raw data file.
+
+  @returns: A RawData object.
+  """
   content = None
-  with open(input_file) as f:
-    content = f.read()
+  with open(input_file) as handle:
+    content = handle.read()
   data_format = data.DataFormat(
       num_channels=1,
       length_bits=16,
@@ -39,32 +57,23 @@ def read_raw_data(input_file):
   return data.RawData(content, data_format)
 
 
-def get_down_sample(raw_data, num_of_points):
-  time_duration_secs = (raw_data.num_of_samples /
-                        raw_data.data_format.sampling_rate)
-  logging.info('time: 0 ~ %r s', time_duration_secs)
-  num_of_samples = raw_data.num_of_samples
-  down_sample_number = num_of_samples / num_of_points
-  down_sample_values = raw_data.channel_data[0][::down_sample_number]
-  logging.debug('Down sample length: %s', len(down_sample_values))
-  return down_sample_values
+#TODO abstract this to a new class ViewCreater.
+def draw_down_sample(samples, height):
+  """Print samples to a 2D array using * dots.
 
-
-def draw_down_sample(samples, height, full_range):
+  @param samples: The samples to print.
+  @param height: The height of this canvas.
+  """
   canvas = [[' '] * len(samples) for _ in xrange(height)]
 
   logging.debug('canvas size: width: %r, height: %r',
                 len(canvas[0]), len(canvas))
   half_height = height >> 1
   canvas[half_height] = ['-'] * len(samples)
-  scale_factor = full_range / height
-  logging.info('full_range: %r ~ %r', 0 - full_range / 2, full_range / 2)
-  logging.debug('full_range = %r, height = %r, scale_factor = %r',
-                full_range, height, scale_factor)
   for index, value in enumerate(samples):
     logging.debug('index, value = %r, %r', index, value)
-    scaled_value = value / scale_factor
-    canvas_y = scaled_value + half_height
+    #scaled_value = value / scale_factor
+    canvas_y = value + half_height
     if canvas_y >= height or canvas_y < 0:
       continue
     canvas_x = index
@@ -73,7 +82,14 @@ def draw_down_sample(samples, height, full_range):
   return canvas
 
 
+#TODO abstract this to a new class ViewPrinter.
 def print_canvas(canvas):
+  """Print canvas to command line.
+
+  @args canvas: A 2D array containing the content to print with (0,0) =
+  in the top left corner and the dimension is (row, col).
+
+  """
   output = cStringIO.StringIO()
   num_rows = len(canvas)
   num_cols = len(canvas[0])
@@ -83,7 +99,12 @@ def print_canvas(canvas):
     output.write('\n')
   print output.getvalue()
 
+
 def parse_args():
+  """Parse command line arguments.
+
+  @returns: populated namespace containing parsed arguments.
+  """
   parser = argparse.ArgumentParser(description='Interactive waveform viewer')
   parser.add_argument('--debug', '-d', action='store_true', default=False,
                       help='Print debug messages.')
@@ -91,9 +112,12 @@ def parse_args():
   args = parser.parse_args()
   level = logging.DEBUG if args.debug else logging.INFO
   logging.basicConfig(level=level)
+  return args
+
 
 def main():
-  args = parse_args()
+  """Main entry point."""
+  parse_args()
   show_basic_function()
 
 
