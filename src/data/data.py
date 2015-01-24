@@ -6,30 +6,40 @@ import struct
 import StringIO
 
 
-class IntFormat(object):
+class IntFormat(object): # pylint:disable=R0903
+  """Integer format is signed or unsigned."""
   def __init__(self):
     pass
 
   SIGNED = 'Signed'
-  UNSIGNED = 'Unsigned' 
+  UNSIGNED = 'Unsigned'
 
 
-class Endian(object):
+class Endian(object): # pylint:disable=R0903
+  """Integer format is little endian or big endian."""
   def __init__(self):
     pass
 
   LITTLE_ENDIAN = 'Little Endian'
   BIG_ENDIAN = 'Big Endian'
 
-
+# Format used in struct.unpack.
 _STRUCT_UNPACK_FORMAT = {
     (16, IntFormat.SIGNED, Endian.LITTLE_ENDIAN): '<h',
     (32, IntFormat.SIGNED, Endian.LITTLE_ENDIAN): '<i',
 }
 
 
-class DataFormat(object):
+class DataFormat(object): # pylint:disable=R0903
+  """Data format of a raw file."""
   def __init__(self, num_channels, length_bits, sampling_rate):
+    """Creates a DataFormat.
+
+    @param num_channels: Number of channels.
+    @param length_bits: Length of bits of a sample.
+    @param sampling_rate: Sampling rate in sample per seconds.
+
+    """
     self.num_channels = num_channels
     self.length_bits = length_bits
     self.sampling_rate = sampling_rate
@@ -94,13 +104,13 @@ class RawData(object): # pylint:disable=R0903
     @param binary: A string containing binary data.
     """
     channel_index = 0
-    with contextlib.closing(StringIO.StringIO(binary)) as f:
-      number = self._read_one_sample(f)
+    with contextlib.closing(StringIO.StringIO(binary)) as handle:
+      number = self._read_one_sample(handle)
       while number is not None:
         self.channel_data[channel_index].append(number)
         channel_index = ((channel_index + 1) %
                          self.data_format.num_channels)
-        number = self._read_one_sample(f)
+        number = self._read_one_sample(handle)
 
 
 class OneChannelRawData(object): # pylint:disable=R0903
