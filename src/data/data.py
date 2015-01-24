@@ -1,6 +1,7 @@
 """Read and parse data"""
 
 import contextlib
+import logging
 import struct
 import StringIO
 
@@ -36,7 +37,19 @@ class DataFormat(object):
         (length_bits, IntFormat.SIGNED, Endian.LITTLE_ENDIAN)]
 
 
-class RawData(object):
+  @property
+  def data_range(self):
+    """The min and max of sample value range.
+
+    @returns: A tuple containing (min, max) of sample value range.
+
+    """
+    half_length_bits = self.length_bits - 1
+    logging.debug('half length of bits = %r', half_length_bits)
+    return (-(1 << half_length_bits), (1 << half_length_bits) - 1)
+
+
+class RawData(object): # pylint:disable=R0903
   """The abstraction of raw data.
 
   @property channel_data: A list of lists containing samples in each channel.
