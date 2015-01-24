@@ -5,11 +5,11 @@ import logging
 import os
 import cStringIO
 import subprocess
+import argparse
 
 from data import data
 
 def show_basic_function():
-  logging.basicConfig(level=logging.INFO)
   src_folder = os.path.dirname(os.path.realpath(__file__))
   input_file = os.path.join(src_folder, '..', 'test_data', '1hz.raw')
   raw_data = read_raw_data(input_file)
@@ -83,10 +83,17 @@ def print_canvas(canvas):
     output.write('\n')
   print output.getvalue()
 
+def parse_args():
+  parser = argparse.ArgumentParser(description='Interactive waveform viewer')
+  parser.add_argument('--debug', '-d', action='store_true', default=False,
+                      help='Print debug messages.')
+
+  args = parser.parse_args()
+  level = logging.DEBUG if args.debug else logging.INFO
+  logging.basicConfig(level=level)
 
 def main():
-  print 'Hello'
-
+  args = parse_args()
   show_basic_function()
 
 
