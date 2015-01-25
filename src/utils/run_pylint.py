@@ -20,7 +20,7 @@ def parse_args():
   @returns: The populated namespace.
   """
   parser = argparse.ArgumentParser(description='Pylint runner')
-  parser.add_argument('--files', '-f', action='store', default=None, nargs='*',
+  parser.add_argument('files', action='store', default=None, nargs='*',
                       help='Run pylint on files. Default is all python files.')
 
   parser.add_argument('--debug', '-d', action='store_true', default=False,
