@@ -9,6 +9,7 @@ import subprocess
 
 from data import data
 from waveform import waveform
+from waveview import waveview
 
 
 def show_basic_function():
@@ -18,9 +19,13 @@ def show_basic_function():
   raw_data = read_raw_data(input_file)
   one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
   width, height = get_window_size()
+  if not height & 1:
+    logging.info('Modify height %r to %r', height, height - 1)
+    height = height - 1
   wave = waveform.Waveform(one_channel_raw_data, width, height)
-
-  canvas = draw_down_sample(wave.wave_samples, height)
+  view = waveview.WaveView(wave.wave_samples, width, height)
+  view.draw_view(0, 0)
+  canvas = view.get_view()
   print_canvas(canvas)
 
 
@@ -57,31 +62,6 @@ def read_raw_data(input_file):
   return data.RawData(content, data_format)
 
 
-#TODO abstract this to a new class ViewCreater.
-def draw_down_sample(samples, height):
-  """Print samples to a 2D array using * dots.
-
-  @param samples: The samples to print.
-  @param height: The height of this canvas.
-  """
-  canvas = [[' '] * len(samples) for _ in xrange(height)]
-
-  logging.debug('canvas size: width: %r, height: %r',
-                len(canvas[0]), len(canvas))
-  half_height = height >> 1
-  canvas[half_height] = ['-'] * len(samples)
-  for index, value in enumerate(samples):
-    logging.debug('index, value = %r, %r', index, value)
-    #scaled_value = value / scale_factor
-    canvas_y = value + half_height
-    if canvas_y >= height or canvas_y < 0:
-      continue
-    canvas_x = index
-    logging.debug('x, y = %r, %r', canvas_x, canvas_y)
-    canvas[canvas_y][canvas_x] = '*'
-  return canvas
-
-
 #TODO abstract this to a new class ViewPrinter.
 def print_canvas(canvas):
   """Print canvas to command line.
@@ -93,7 +73,7 @@ def print_canvas(canvas):
   output = cStringIO.StringIO()
   num_rows = len(canvas)
   num_cols = len(canvas[0])
-  for row in xrange(num_rows - 1, -1, -1):
+  for row in xrange(num_rows):
     for col in xrange(num_cols):
       output.write(canvas[row][col])
     output.write('\n')
