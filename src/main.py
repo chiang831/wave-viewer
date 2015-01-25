@@ -36,7 +36,7 @@ def get_window_size():
   """
   # Must leave space for user prompt
   width = int(subprocess.check_output(['tput', 'cols']).strip()) - 30
-  height = int(subprocess.check_output(['tput', 'lines']).strip()) - 5
+  height = int(subprocess.check_output(['tput', 'lines']).strip()) - 8
   logging.info('width, height = %r, %r', width, height)
   return width, height
 
