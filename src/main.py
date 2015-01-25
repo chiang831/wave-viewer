@@ -20,7 +20,7 @@ def show_basic_function():
   one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
   width, height = get_window_size()
   if not height & 1:
-    logging.info('Modify height %r to %r', height, height - 1)
+    logging.debug('Modify height %r to %r', height, height - 1)
     height = height - 1
   wave = waveform.Waveform(one_channel_raw_data, width, height)
   view = waveview.WaveView(wave.wave_samples, width, height)
