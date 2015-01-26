@@ -12,6 +12,8 @@ from waveform import waveform
 from waveview import waveview
 
 
+LOG_FILE = '/tmp/wave-view.log'
+
 def show_basic_function():
   """Show basic function with test data."""
   src_folder = os.path.dirname(os.path.realpath(__file__))
@@ -85,13 +87,16 @@ def parse_args():
 
   @returns: populated namespace containing parsed arguments.
   """
-  parser = argparse.ArgumentParser(description='Interactive waveform viewer')
+  parser = argparse.ArgumentParser(
+      description='Interactive waveform viewer.\n'
+                  'The log is in %s.' % LOG_FILE,
+      formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('--debug', '-d', action='store_true', default=False,
                       help='Print debug messages.')
 
   args = parser.parse_args()
   level = logging.DEBUG if args.debug else logging.INFO
-  logging.basicConfig(level=level)
+  logging.basicConfig(filename=LOG_FILE, level=level)
   return args
 
 
