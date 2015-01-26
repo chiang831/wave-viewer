@@ -2,48 +2,57 @@
 """The main entry point."""
 
 import argparse
-import cStringIO
+import curses
 import logging
 import os
-import subprocess
 
 from data import data
-from waveform import waveform
-from waveview import waveview
+from screen import screen
 
 
 LOG_FILE = '/tmp/wave-view.log'
 
-def show_basic_function():
+def show_basic_function(stdscr):
   """Show basic function with test data."""
   src_folder = os.path.dirname(os.path.realpath(__file__))
   input_file = os.path.join(src_folder, '..', 'test_data', '1hz.raw')
   raw_data = read_raw_data(input_file)
   one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
-  width, height = get_window_size()
-  if not height & 1:
-    logging.debug('Modify height %r to %r', height, height - 1)
-    height = height - 1
-  wave = waveform.Waveform(one_channel_raw_data, width, height)
-  view = waveview.WaveView(wave.wave_samples, width, height)
-  view.draw_view(0, 0)
-  canvas = view.get_view()
-  print_canvas(canvas)
+
+  top_screen = screen.Screen(stdscr, one_channel_raw_data, 5)
+  top_screen.clear()
+  top_screen.init_display()
+
+  # TODO: constraint cursor in view window.
+  # TODO: show time stamp and value at cursor.
+
+  while True:
+    input_char = stdscr.getch()
+    logging.debug('input char = %r', input_char)
+    if 0 < input_char < 256:
+      python_char = chr(input_char)
+      if python_char in 'Qq':
+        break
+      else:
+        # Ignore incorrect keys
+        pass
+    elif input_char == curses.KEY_UP:
+      direction = screen.Direction.UP
+    elif input_char == curses.KEY_DOWN:
+      direction = screen.Direction.DOWN
+    elif input_char == curses.KEY_LEFT:
+      direction = screen.Direction.LEFT
+    elif input_char == curses.KEY_RIGHT:
+      direction = screen.Direction.RIGHT
+    else:
+      # Ignore incorrect keys
+      pass
+
+    # Move view.
+    top_screen.wave_view_move(direction)
 
 
-def get_window_size():
-  """Gets window size.
-
-  @returns: A tuple (width, height).
-  """
-  # Must leave space for user prompt
-  width = int(subprocess.check_output(['tput', 'cols']).strip()) - 30
-  height = int(subprocess.check_output(['tput', 'lines']).strip()) - 8
-  logging.info('width, height = %r, %r', width, height)
-  return width, height
-
-
-#TODO Set format from command line.
+#TODO: Set format from command line.
 def read_raw_data(input_file):
   """Read a file.
 
@@ -62,24 +71,6 @@ def read_raw_data(input_file):
       length_bits=16,
       sampling_rate=48000)
   return data.RawData(content, data_format)
-
-
-#TODO abstract this to a new class ViewPrinter.
-def print_canvas(canvas):
-  """Print canvas to command line.
-
-  @args canvas: A 2D array containing the content to print with (0,0) =
-  in the top left corner and the dimension is (row, col).
-
-  """
-  output = cStringIO.StringIO()
-  num_rows = len(canvas)
-  num_cols = len(canvas[0])
-  for row in xrange(num_rows):
-    for col in xrange(num_cols):
-      output.write(canvas[row][col])
-    output.write('\n')
-  print output.getvalue()
 
 
 def parse_args():
@@ -103,8 +94,7 @@ def parse_args():
 def main():
   """Main entry point."""
   parse_args()
-  show_basic_function()
-
+  curses.wrapper(show_basic_function)
 
 if __name__ == '__main__':
   main()
