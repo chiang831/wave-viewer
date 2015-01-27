@@ -96,6 +96,10 @@ class WaveView(object):  # pylint:disable=R0903
     for view_x in xrange(self._width):
       sample_x = view_x + start_x
 
+      # No sample to show at this point.
+      if sample_x < 0:
+        continue
+
       # No sample to show after this point.
       if sample_x >= self._samples_length:
         break
