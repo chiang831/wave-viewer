@@ -174,3 +174,23 @@ class Waveform(object): # pylint:disable=R0903
     """
     add = 0.5 if value > 0 else -0.5
     return int(value / self._quantization_factor + add)
+
+
+  @property
+  def quantization_factor(self):
+    """Returns quantization factor.
+
+    @returns: Quantization factor
+
+    """
+    return self._quantization_factor
+
+
+  @property
+  def down_sample_factor(self):
+    """Returns down-sample factor.
+
+    @returns: Down-sample factor.
+
+    """
+    return self._down_sample_factor

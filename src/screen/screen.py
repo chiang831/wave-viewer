@@ -38,12 +38,42 @@ def get_next(current_x, current_y, direction):
   return current_x, current_y
 
 
+def format_value(value, width):
+  """Format the value into a string of length width.
+
+  @param value: The value.
+  @param width: The width of returned string.
+
+  @returns: A strnig of length width representing the number.
+
+  """
+  full_string = '%s' % value
+  dot_index = full_string.find('.')
+  error = False
+  # 1234.56 can not be shown in 3 digits.
+  if dot_index > width:
+    error = True
+  # 1234 can not be shown show in 3 digits.
+  elif dot_index == -1:
+    if len(full_string) > width:
+      error = True
+  else:
+    pass
+  if error:
+    logging.error('width %r is not long enough for value %r',
+                  width, value)
+  if len(full_string) < width:
+    return ' ' * (width - len(full_string)) + full_string
+  else:
+    return full_string[0:width]
+
+
 class Screen(object):
-  """Screen controls a wave view and a menu.
+  """Screen controls a data view and a menu.
 
    ----------------------------------------
   |                                        |
-  |               Wave view                |
+  |               Data view                |
   |                                        |
   |                                        |
   |                                        |
@@ -59,19 +89,19 @@ class Screen(object):
 
   Screen object controls a window object to control
   overall content in the termimal.
-  MenuDisplay and WaveViewDisplay are two Display Object.
+  MenuDisplay and DataViewDisplay are two Display Object.
   Display object uses subwindow to draw the content.
 
   Note that window coordinate use (row, col) where (0, 0) is the
   top left corner of the window.
 
   """
-  def __init__(self, window, raw_data, menu_height):
+  _MENU_HEIGHT = 5
+  def __init__(self, window, raw_data):
     """Create a Screen object.
 
     @param window: A curses.window object.
     @param raw_data: A data.OneChannelRawData object.
-    @param menu_height: A number for height of menu
 
     """
     window.clear()
@@ -82,12 +112,12 @@ class Screen(object):
     self._window = window
 
     subwindow_menu = self._window.subwin(
-        menu_height, window_width, window_height - menu_height, 0)
-    subwindow_wave = self._window.subwin(
-        window_height - menu_height, window_width, 0, 0)
+        self._MENU_HEIGHT, window_width, window_height - self._MENU_HEIGHT, 0)
+    subwindow_data = self._window.subwin(
+        window_height - self._MENU_HEIGHT, window_width, 0, 0)
 
     self._menu_display = MenuDisplay(subwindow_menu)
-    self._wave_display = WaveViewDisplay(subwindow_wave, raw_data)
+    self._data_display = DataViewDisplay(subwindow_data, raw_data)
 
 
   def clear(self):
@@ -96,21 +126,21 @@ class Screen(object):
 
 
   def init_display(self):
-    """Display initial menu and wave view."""
+    """Display initial menu and data view."""
     self._menu_display.init_display()
-    self._wave_display.init_display()
+    self._data_display.init_display()
     self._window.refresh()
 
 
   def wave_view_move(self, direction):
-    """Move curser in the view window.
+    """Move curser in the data view window.
 
-    Asks WaveViewDisplay to handle a curser move event.
+    Asks DataViewDisplay to handle a curser move event.
 
     @param direction: A direction defined in Direction
 
     """
-    self._wave_display.move(direction)
+    self._data_display.move(direction)
     self._window.refresh()
 
 
@@ -142,13 +172,217 @@ class MenuDisplay(object):
       self._window.clrtoeol()
 
 
+class DataViewDisplay(object):
+  """DataViewDisplay controls 3 displays.
+
+   ----------------------------------------
+  |   |                                    |
+  |   |             Wave view              |
+  |   |                                    |
+  |val|                                    |
+  |   |                                    |
+  |   |                                    |
+  |   |                                    |
+  |   |                                    |
+  |---|------------------------------------|
+  |   |  time                              |
+  |----------------------------------------|
+
+  """
+  _VALUE_WIDTH = 10
+  _TIME_HEIGHT = 2
+
+  def __init__(self, window, raw_data):
+    """Creates a DataViewDisplay object.
+
+    @param window: A subwindow.
+    @param raw_data: A data.OneChannelRawData object.
+
+    """
+    self._window = window
+    self._raw_data = raw_data
+    self._height, self._width = self._window.getmaxyx()
+
+    subwindow_value = self._window.subwin(
+        self._height - self._TIME_HEIGHT, self._VALUE_WIDTH, 0, 0)
+    subwindow_wave = self._window.subwin(
+        self._height - self._TIME_HEIGHT, self._width - self._VALUE_WIDTH,
+        0, self._VALUE_WIDTH)
+    subwindow_time = self._window.subwin(
+        self._TIME_HEIGHT, self._width - self._VALUE_WIDTH,
+        self._height - self._TIME_HEIGHT, self._VALUE_WIDTH)
+
+    self._wave_display = WaveViewDisplay(subwindow_wave, self._raw_data)
+    wave_height, wave_width = self._wave_display.draw_size
+    self._value_display = ValueDisplay(subwindow_value, wave_height)
+    self._time_display = TimeDisplay(subwindow_time, wave_width)
+
+
+  def init_display(self):
+    """Initializes display."""
+    self._wave_display.init_display()
+    self._update_time_value()
+
+
+  def _update_time_value(self):
+    """Updates time and value."""
+    value_range = self._wave_display.get_value_range()
+    time_range = self._wave_display.get_time_range()
+    self._value_display.update(value_range)
+    self._time_display.update(time_range)
+
+
+  def move(self, direction):
+    """Move view toward a direction. Also update time and value.
+
+    @param direction: A direcition defined in Direction.
+
+    """
+    self._wave_display.move(direction)
+    self._update_time_value()
+
+
+class ValueDisplayError(Exception):
+  """Error in WaveViewDisplay."""
+  pass
+
+
+class ValueDisplay(object):
+  """Value display controls display for value.
+
+ ------------------------------
+ | Maximum value in this view.| --> 0
+ |                            |
+ |                            |
+ |                            |
+ |                            |
+ |                            |
+ |                            |
+ | Minimum value in this view.| --> wave_height - 1
+ |                            |
+ -----------------------------
+
+  """
+  _VALUE_LENGTH = 8
+  def __init__(self, window, wave_height):
+    """Creates a ValueDisplay object.
+
+    @param window: A subwindow.
+    @param wave_height: The height of wave view.
+
+    """
+    self._window = window
+    self._height, self._width = self._window.getmaxyx()
+    self._wave_height = wave_height
+    logging.debug('Value display height, width = %r, %r',
+                  self._height, self._width)
+    logging.debug('wave height: %r', wave_height)
+    if self._width < self._VALUE_LENGTH + 1:
+      raise ValueDisplayError('Width %r is not long enough' % self._width)
+
+
+  def update(self, value_range):
+    """Updates the display with new value range.
+
+    @param value_range: (min_value, max_value).
+
+    """
+    min_value, max_value = value_range
+    min_value_str = format_value(min_value, self._VALUE_LENGTH)
+    max_value_str = format_value(max_value, self._VALUE_LENGTH)
+
+    self.clear()
+    self._window.addstr(0, 0, max_value_str)
+    self._window.addstr(self._wave_height - 1, 0, min_value_str)
+    self._window.refresh()
+
+
+  def clear(self):
+    """Clears the window."""
+    for row in xrange(self._height):
+      self._window.move(row, 0)
+      self._window.clrtoeol()
+
+
+class TimeDisplayError(Exception):
+  """Error in WaveViewDisplay."""
+  pass
+
+
+class TimeDisplay(object):
+  """Time display controls display for time.
+
+  ----------------------------------------------------------
+ | Minimum time in this view.    Maximum time in this view.|
+ |                                                          |
+  ----------------------------------------------------------
+
+  """
+  _TIME_LENGTH = 8
+  def __init__(self, window, wave_width):
+    """Creates a TimeDisplay object.
+
+    @param window: A subwindow.
+    @param wave_width: The width of wave view.
+
+    """
+    self._window = window
+    self._height, self._width = self._window.getmaxyx()
+    self._wave_width = wave_width
+    logging.debug('Time display height, width = %r, %r',
+                  self._height, self._width)
+    if self._width < 2 * (self._TIME_LENGTH + 1):
+      raise TimeDisplayError('Width %r is not long enough' % self._width)
+
+
+  def update(self, time_range):
+    """Updates the display with new time range.
+
+    @param time_range: (min_time, max_time).
+
+    """
+    min_time, max_time = time_range
+    min_time_str = format_value(min_time, self._TIME_LENGTH)
+    max_time_str = format_value(max_time, self._TIME_LENGTH)
+
+    self.clear()
+    self._window.addstr(0, 0, min_time_str)
+    # Do not write to the last point
+    self._window.addstr(0, self._wave_width - self._TIME_LENGTH - 2,
+                        max_time_str)
+    self._window.refresh()
+
+
+  def clear(self):
+    """Clears the window."""
+    for row in xrange(self._height):
+      self._window.move(row, 0)
+      self._window.clrtoeol()
+
+
 class WaveViewDisplayError(Exception):
   """Error in WaveViewDisplay."""
   pass
 
 
 class WaveViewDisplay(object):
-  """This class controls a subwindow for waveview display."""
+  """This class controls a subwindow for waveview display.
+
+   ----------------------------------------
+  |                                        |
+  |                 Wave view              |
+  |                                        |
+  |                                        |
+  |                                        |
+  |                                        |
+  |                                        |
+  |                                        |
+  |                                        |
+  |                                        |
+  |----------------------------------------|
+
+
+  """
   def __init__(self, window, raw_data):
     """Creates a WaveViewDisplay object.
 
@@ -158,10 +392,22 @@ class WaveViewDisplay(object):
     """
     self._window = window
     self._raw_data = raw_data
+    self._wave = None
     self._view = None
     self._start_x, self._start_y = None, None
     self._width, self._height = None, None
     self._setup_valid_size()
+
+
+  @property
+  def draw_size(self):
+    """Return the (height, width) that is used to draw the wave view.
+
+    @returns: (height, width)
+
+    """
+    return (self._height, self._width)
+
 
   def clear(self):
     """Clears the window."""
@@ -180,14 +426,15 @@ class WaveViewDisplay(object):
       self._height -= 1
     self._width -= 1
 
+
   def init_display(self):
     """Initializes the display of a wave view.
 
     Use full waveform scale and display at (0, 0) in sample coordinate.
 
     """
-    wave = waveform.Waveform(self._raw_data, self._width, self._height)
-    self._view = waveview.WaveView(wave.wave_samples, self._width,
+    self._wave = waveform.Waveform(self._raw_data, self._width, self._height)
+    self._view = waveview.WaveView(self._wave.wave_samples, self._width,
                                    self._height)
     self._start_x, self._start_y = 0, 0
     self._display()
@@ -206,8 +453,6 @@ class WaveViewDisplay(object):
     self._display()
 
 
-
-
   def _display(self):
     """Display wave view at using current start point in sample coordinate."""
     self._view.draw_view(self._start_x, self._start_y)
@@ -222,8 +467,9 @@ class WaveViewDisplay(object):
     @python python_char: a python character, which is a one-length string.
 
     """
-    logging.debug('Draw %r and (row, col) = (%r, %r)',
-                  python_char, row, col)
+    # Enable this logging if want to debug to detail.
+    #logging.debug('Draw %r and (row, col) = (%r, %r)',
+    #              python_char, row, col)
     self._window.addch(row, col, ord(python_char))
 
 
@@ -238,3 +484,33 @@ class WaveViewDisplay(object):
         self._draw_char(row, col, content[row][col])
 
     self._window.refresh()
+
+
+  def get_value_range(self):
+    """Get current value range in the view.
+
+    @return (min_value, max_value)
+
+    """
+    min_level, max_level = self._view.get_level_range(self._start_y)
+    scale = self._wave.quantization_factor
+    value_range = (min_level * scale, max_level * scale)
+    return value_range
+
+
+  def get_time_range(self):
+    """Get current value range in the view.
+
+    @return (min_time, max_time)
+
+    """
+    min_time_index, max_time_index = self._view.get_time_index_range(
+            self._start_x)
+    scale = self._wave.down_sample_factor
+    min_sample_index, max_sample_index = (min_time_index * scale,
+                                          max_time_index * scale)
+    time_range = (
+            float(min_sample_index) / self._raw_data.sampling_rate,
+            float(max_sample_index) / self._raw_data.sampling_rate)
+
+    return time_range

@@ -19,7 +19,7 @@ def show_basic_function(stdscr):
   raw_data = read_raw_data(input_file)
   one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
 
-  top_screen = screen.Screen(stdscr, one_channel_raw_data, 5)
+  top_screen = screen.Screen(stdscr, one_channel_raw_data)
   top_screen.clear()
   top_screen.init_display()
 

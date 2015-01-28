@@ -71,6 +71,7 @@ class WaveView(object):  # pylint:disable=R0903
     self._samples = samples
     self._width = width
     self._height = height
+    # There are in total 2 * self._half_height + 1 levels.
     self._half_height = height >> 1
     self._samples_length = len(samples)
 
@@ -120,6 +121,28 @@ class WaveView(object):  # pylint:disable=R0903
 
     """
     return self._view_content.get_all()
+
+
+  def get_level_range(self, start_y):
+    """Gets (min_level, max_level) at starting point y coordinate.
+
+    @param start_y: The starting point y coordinate in sample coordinate.
+
+    @returns: (min_level, max_level).
+
+    """
+    return (start_y - self._half_height, start_y + self._half_height)
+
+
+  def get_time_index_range(self, start_x):
+    """Gets (min_time_index, max_time_index) at starting point x coordinate.
+
+    @param start_x: The starting point x coordinate in sample coordinate.
+
+    @returns: (min_time_index, max_time_index).
+
+    """
+    return (start_x, start_x + self._width - 1)
 
 
 class ViewContentError(Exception):
