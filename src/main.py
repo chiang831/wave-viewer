@@ -29,12 +29,18 @@ def show_basic_function(stdscr):
   while True:
     input_char = stdscr.getch()
     logging.debug('input char = %r', input_char)
+    direction = None
+    time_level_direction = None
     if 0 < input_char < 256:
       python_char = chr(input_char)
       if python_char in 'Qq':
         break
+      elif python_char in 'Oo':
+        time_level_direction = screen.ScaleDirection.UP
+      elif python_char in 'Pp':
+        time_level_direction = screen.ScaleDirection.DOWN
+      # Ignore incorrect keys
       else:
-        # Ignore incorrect keys
         pass
     elif input_char == curses.KEY_UP:
       direction = screen.Direction.UP
@@ -48,8 +54,11 @@ def show_basic_function(stdscr):
       # Ignore incorrect keys
       pass
 
-    # Move view.
-    top_screen.wave_view_move(direction)
+    if direction:
+      # Move view.
+      top_screen.wave_view_move(direction)
+    elif time_level_direction:
+      top_screen.wave_view_change_time_level(time_level_direction)
 
 
 #TODO: Set format from command line.

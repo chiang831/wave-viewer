@@ -6,6 +6,12 @@ from waveform import waveform
 from waveview import waveview
 
 
+class ScaleDirection(object):
+  """Scale direction."""
+  UP = 'UP'
+  DOWN = 'DOWN'
+
+
 class Direction(object):
   """Directions."""
   LEFT = 'LEFT'
@@ -96,7 +102,7 @@ class Screen(object):
   top left corner of the window.
 
   """
-  _MENU_HEIGHT = 5
+  _MENU_HEIGHT = 8
   def __init__(self, window, raw_data):
     """Create a Screen object.
 
@@ -143,6 +149,14 @@ class Screen(object):
     self._data_display.move(direction)
     self._window.refresh()
 
+  def wave_view_change_time_level(self, direction):
+    """Change wave view time level.
+
+    @param direction: ScaleDirection.UP or ScaleDirection.DOWN
+    """
+    self._data_display.change_time_level(direction)
+    self._window.refresh()
+
 
 class MenuDisplay(object):
   """This class controls a subwindow for menu."""
@@ -162,6 +176,8 @@ class MenuDisplay(object):
     self._window.addstr(1, 2, 'Menu')
     self._window.addstr(2, 2, 'Arrow key to move around.')
     self._window.addstr(3, 2, 'Q to quit.')
+    self._window.addstr(4, 2, 'O to scale larger in time.')
+    self._window.addstr(5, 2, 'P to scale smaller in time.')
     self._window.refresh()
 
 
@@ -239,6 +255,15 @@ class DataViewDisplay(object):
 
     """
     self._wave_display.move(direction)
+    self._update_time_value()
+
+
+  def change_time_level(self, direction):
+    """Change wave view time level.
+
+    @param direction: ScaleDirection.UP or ScaleDirection.DOWN
+    """
+    self._wave_display.change_time_level(direction)
     self._update_time_value()
 
 
@@ -397,6 +422,13 @@ class WaveViewDisplay(object):
     self._start_x, self._start_y = None, None
     self._width, self._height = None, None
     self._setup_valid_size()
+    # Time level is an integer to control sample length.
+    # Level 0 means the sample length is the width of this view.
+    # Level 1 means to enlarge the wave view horizontally, that is, increase
+    # the sample length by certain amount. The scale corresponds to each
+    # level is defined in _get_time_scale.
+    self._time_level = None
+    self._sample_length = None
 
 
   @property
@@ -433,7 +465,13 @@ class WaveViewDisplay(object):
     Use full waveform scale and display at (0, 0) in sample coordinate.
 
     """
-    self._wave = waveform.Waveform(self._raw_data, self._width, self._height)
+    # Set time level to 0 and sample length to the width of this view.
+    # In default view, full data can be displayed in this view.
+    self._time_level = 0
+    self._sample_length = self._width
+
+    self._wave = waveform.Waveform(self._raw_data, self._sample_length,
+                                   self._height)
     self._view = waveview.WaveView(self._wave.wave_samples, self._width,
                                    self._height)
     self._start_x, self._start_y = 0, 0
@@ -514,3 +552,57 @@ class WaveViewDisplay(object):
             float(max_sample_index) / self._raw_data.sampling_rate)
 
     return time_range
+
+
+  def change_time_level(self, scale_direction):
+    """Change time level by change it UP or DOWN.
+
+    @param scale_direction: ScaleDirection.UP or ScaleDirection.DOWN to
+                            change time level up or down.
+
+    """
+    logging.debug('Scale time level %r', scale_direction)
+
+    if scale_direction == ScaleDirection.UP:
+      new_time_level = self._time_level + 1
+    else:
+      if self._time_level == 0:
+        logging.warning('Lowest time level already.')
+        return
+      else:
+        new_time_level = self._time_level - 1
+    current_time_scale = self._get_time_scale(self._time_level)
+    new_time_scale = self._get_time_scale(new_time_level)
+
+    new_sample_length = int(new_time_scale * self._width)
+    if new_sample_length > len(self._raw_data.samples):
+      logging.warning('Highest time level already.')
+      return
+
+    # Update time level, sample length, and start x at new time level.
+    self._time_level = new_time_level
+    self._sample_length = new_sample_length
+    self._start_x = int(self._start_x / current_time_scale * new_time_scale)
+
+    logging.debug('After scale, new time level: %r, new sample length: %r, '
+                  'new start_x: %r',
+                  self._time_level, self._sample_length, self._start_x)
+
+    # Update wave form and wave view and display it.
+    self._wave = waveform.Waveform(self._raw_data, self._sample_length,
+                                   self._height)
+    self._view = waveview.WaveView(self._wave.wave_samples, self._width,
+                                   self._height)
+    self._display()
+
+
+  def _get_time_scale(self, level):
+    """Return a scale value based on scale_level.
+
+    @param level: An integer. 0 means the view contains full data range.
+                  1 means the width of waveform is 1.1 times the width at
+                  level 0.
+                  2 means the width of waveform is 1.2 times the width at
+                  level 0.
+    """
+    return 1 + level * 0.1

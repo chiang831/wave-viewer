@@ -118,12 +118,33 @@ class Waveform(object): # pylint:disable=R0903
 
 
   def _compute_down_sample_factor(self):
-    """Computes the down-sample factor."""
-    self._down_sample_factor = int(self._number_of_samples /
-                                   self._number_of_subsamples)
+    """Computes the down-sample factor.
+    There are c points, we want to down-sample a samples, with each samples
+    separated by b points. The number a, and b must satisfy:
+    c >= (a - 1) x b + 1
+    c <= (a - 1 ) x b + b
+
+    => b <= (c - 1) / (a - 1)
+       b >=  c / a
+
+    """
     logging.debug(
         'number of samples: %r, number of subsamples: %r',
         self._number_of_samples, self._number_of_subsamples)
+
+    max_factor = (float(self._number_of_samples - 1) /
+                       (self._number_of_subsamples - 1))
+
+    min_factor = (float(self._number_of_samples) / self._number_of_subsamples)
+
+    logging.debug('down-sample max factor: %r', max_factor)
+    logging.debug('down-sample min factor: %r', min_factor)
+
+    if self._number_of_samples < self._number_of_subsamples:
+      raise WaveformError(
+          'Too much number of subsamples: %r' % self._number_of_subsamples)
+
+    self._down_sample_factor = int(max_factor)
     logging.debug('down-sample factor: %r', self._down_sample_factor)
 
 
@@ -146,9 +167,9 @@ class Waveform(object): # pylint:disable=R0903
   def _down_sample(self):
     """Down-samples original samples using down-sample factor."""
     self._subsamples = self._raw_data.samples[::self._down_sample_factor]
-    # Neglects the last one subsample if any.
-    if len(self._subsamples) == self._number_of_subsamples + 1:
-      self._subsamples = self._subsamples[:-1]
+    # Neglects the redundant subsamples in the tails.
+    if len(self._subsamples) >= self._number_of_subsamples:
+      self._subsamples = self._subsamples[:self._number_of_subsamples]
     if not len(self._subsamples) == self._number_of_subsamples:
       raise WaveformError(
           'Number of subsample is %r, while %r is expected' % (
