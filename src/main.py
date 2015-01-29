@@ -12,10 +12,9 @@ from screen import screen
 
 LOG_FILE = '/tmp/wave-view.log'
 
-def show_basic_function(stdscr):
-  """Show basic function with test data."""
-  src_folder = os.path.dirname(os.path.realpath(__file__))
-  input_file = os.path.join(src_folder, '..', 'test_data', '1hz.raw')
+
+def wave_view(stdscr, input_file):
+  """View wave form."""
   raw_data = read_raw_data(input_file)
   one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
 
@@ -93,6 +92,11 @@ def parse_args():
       formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('--debug', '-d', action='store_true', default=False,
                       help='Print debug messages.')
+  parser.add_argument('input_file', action='store', default=None, nargs='?',
+                      help='Raw data to view. It must be a little-endian\n'
+                           'signed 16-bit, 48000 sampling rate, 1-channel\n'
+                           'raw data. Default file is a 5 seconds 1Hz\n'
+                           'sine wave.')
 
   args = parser.parse_args()
   level = logging.DEBUG if args.debug else logging.INFO
@@ -100,10 +104,20 @@ def parse_args():
   return args
 
 
+def get_input_file(args):
+  """Gets input file from args, or use default test data."""
+  if args.input_file:
+    return args.input_file
+  else:
+    src_folder = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(src_folder, '..', 'test_data', '1hz.raw')
+
+
 def main():
   """Main entry point."""
-  parse_args()
-  curses.wrapper(show_basic_function)
+  args = parse_args()
+  input_file = get_input_file(args)
+  curses.wrapper(wave_view, input_file)
 
 if __name__ == '__main__':
   main()
