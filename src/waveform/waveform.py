@@ -20,7 +20,8 @@ class Waveform(object): # pylint:disable=R0903
   The selected subsamples are at multiple of down-sample factor, with no more
   than number of desird number of subsamples.
   E.g., There are 12 samples [0, 1,..., 11] in the original raw data.
-  The number of subsamples is 4. The down-sample factor is then 12 / 4 = 3.
+  The number of subsamples is 4. The down-sample factor is then int(11 / 3) = 3.
+  (check docstring of _compute_down_sample_factor)
   The selected subsamples are [0, 3, 6, 9].
 
   The number of levels determines the quantization factor.
