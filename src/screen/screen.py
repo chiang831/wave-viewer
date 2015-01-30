@@ -149,12 +149,22 @@ class Screen(object):
     self._data_display.move(direction)
     self._window.refresh()
 
+
   def wave_view_change_time_level(self, direction):
     """Change wave view time level.
 
     @param direction: ScaleDirection.UP or ScaleDirection.DOWN
     """
     self._data_display.change_time_level(direction)
+    self._window.refresh()
+
+
+  def wave_view_change_value_level(self, direction):
+    """Change wave view value level.
+
+    @param direction: ScaleDirection.UP or ScaleDirection.DOWN
+    """
+    self._data_display.change_value_level(direction)
     self._window.refresh()
 
 
@@ -177,7 +187,9 @@ class MenuDisplay(object):
     self._window.addstr(2, 2, 'Arrow key to move around.')
     self._window.addstr(3, 2, 'Q to quit.')
     self._window.addstr(4, 2, 'O to scale larger in time.')
-    self._window.addstr(5, 2, 'P to scale smaller in time.')
+    self._window.addstr(5, 2, 'o to scale smaller in time.')
+    self._window.addstr(6, 2, 'P to scale larger in value.')
+    self._window.addstr(7, 2, 'p to scale smaller in value.')
     self._window.refresh()
 
 
@@ -264,6 +276,15 @@ class DataViewDisplay(object):
     @param direction: ScaleDirection.UP or ScaleDirection.DOWN
     """
     self._wave_display.change_time_level(direction)
+    self._update_time_value()
+
+
+  def change_value_level(self, direction):
+    """Change wave view value level.
+
+    @param direction: ScaleDirection.UP or ScaleDirection.DOWN
+    """
+    self._wave_display.change_value_level(direction)
     self._update_time_value()
 
 
@@ -430,6 +451,13 @@ class WaveViewDisplay(object):
     self._time_level = None
     self._sample_length = None
 
+    # Value level is an integer to control number of quantize levels.
+    # Level 0 means the number of quantize levels is the height of this view.
+    # Level 1 means to enlarge the wave view vertically that is, increase
+    # the number of quantize levels by certain amount. The scale corresponds
+    # to each value level is defined in _get_value_scale.
+    self._value_level = None
+    self._quantize_levels = None
 
   @property
   def draw_size(self):
@@ -470,8 +498,13 @@ class WaveViewDisplay(object):
     self._time_level = 0
     self._sample_length = self._width
 
+    # Set value level to 0 and quantize levels to the height of this view.
+    # In default view, full data can be displayed in this view.
+    self._value_level = 0
+    self._quantize_levels = self._height
+
     self._wave = waveform.Waveform(self._raw_data, self._sample_length,
-                                   self._height)
+                                   self._quantize_levels)
     self._view = waveview.WaveView(self._wave.wave_samples, self._width,
                                    self._height)
     self._start_x, self._start_y = 0, 0
@@ -590,7 +623,7 @@ class WaveViewDisplay(object):
 
     # Update wave form and wave view and display it.
     self._wave = waveform.Waveform(self._raw_data, self._sample_length,
-                                   self._height)
+                                   self._quantize_levels)
     self._view = waveview.WaveView(self._wave.wave_samples, self._width,
                                    self._height)
     self._display()
@@ -604,5 +637,55 @@ class WaveViewDisplay(object):
                   level 0.
                   2 means the width of waveform is 1.2 times the width at
                   level 0.
+    """
+    return 1 + level * 0.1
+
+
+  def change_value_level(self, scale_direction):
+    """Change value level by change it UP or DOWN.
+
+    @param scale_direction: ScaleDirection.UP or ScaleDirection.DOWN to
+                            change value level up or down.
+
+    """
+    logging.debug('Scale value level %r', scale_direction)
+
+    if scale_direction == ScaleDirection.UP:
+      new_value_level = self._value_level + 1
+    else:
+      if self._value_level == 0:
+        logging.warning('Lowest value level already.')
+        return
+      else:
+        new_value_level = self._value_level - 1
+    current_value_scale = self._get_value_scale(self._value_level)
+    new_value_scale = self._get_value_scale(new_value_level)
+    new_quantize_levels = int(new_value_scale * self._height)
+
+    # Update value level, quantize levels, and start y at new value level.
+    self._value_level = new_value_level
+    self._quantize_levels = new_quantize_levels
+    self._start_y = int(self._start_y / current_value_scale * new_value_scale)
+
+    logging.debug('After scale, new value level: %r, new quantize levels: %r, '
+                  'new start_y: %r',
+                  self._value_level, self._quantize_levels, self._start_y)
+
+    # Update wave form and wave view and display it.
+    self._wave = waveform.Waveform(self._raw_data, self._sample_length,
+                                   self._quantize_levels)
+    self._view = waveview.WaveView(self._wave.wave_samples, self._width,
+                                   self._height)
+    self._display()
+
+
+  def _get_value_scale(self, level):
+    """Return a scale value based on scale_level.
+
+    @param level: An integer. 0 means the view contains full data range.
+                  1 means the number of levels is 1.1 times the number of
+                  levels at level 0.
+                  2 means the number of levels is 1.2 times the number of
+                  levels at level 0.
     """
     return 1 + level * 0.1

@@ -2,10 +2,20 @@
 This is a tool to view waveform in command line.
 
 Currently only basic waveform viewing is implemented.
+
 Usage:
 ./wave_view to demonstrate basic waveform vieweing.
-Use arrow key to scroll, O and P to scale in time, and Q to quit.
+
+Use arrow key to scroll.
+
+O and o to scale in time.
+
+P and p to scale in value.
+
+Q to quit.
+
 ./wave_view FILE to view a file.
+
 ./wave_view --help for help.
 
 =================================================

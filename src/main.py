@@ -30,14 +30,19 @@ def wave_view(stdscr, input_file):
     logging.debug('input char = %r', input_char)
     direction = None
     time_level_direction = None
+    value_level_direction = None
     if 0 < input_char < 256:
       python_char = chr(input_char)
       if python_char in 'Qq':
         break
-      elif python_char in 'Oo':
+      elif python_char in 'O':
         time_level_direction = screen.ScaleDirection.UP
-      elif python_char in 'Pp':
+      elif python_char in 'o':
         time_level_direction = screen.ScaleDirection.DOWN
+      elif python_char in 'P':
+        value_level_direction = screen.ScaleDirection.UP
+      elif python_char in 'p':
+        value_level_direction = screen.ScaleDirection.DOWN
       # Ignore incorrect keys
       else:
         pass
@@ -58,6 +63,8 @@ def wave_view(stdscr, input_file):
       top_screen.wave_view_move(direction)
     elif time_level_direction:
       top_screen.wave_view_change_time_level(time_level_direction)
+    elif value_level_direction:
+      top_screen.wave_view_change_value_level(value_level_direction)
 
 
 #TODO: Set format from command line.
