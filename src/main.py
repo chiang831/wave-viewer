@@ -31,6 +31,7 @@ def wave_view(stdscr, input_file):
     direction = None
     time_level_direction = None
     value_level_direction = None
+    reset_view = None
     if 0 < input_char < 256:
       python_char = chr(input_char)
       if python_char in 'Qq':
@@ -43,6 +44,8 @@ def wave_view(stdscr, input_file):
         value_level_direction = screen.ScaleDirection.UP
       elif python_char in 'p':
         value_level_direction = screen.ScaleDirection.DOWN
+      elif python_char in 'Rr':
+        reset_view = True
       # Ignore incorrect keys
       else:
         pass
@@ -65,6 +68,8 @@ def wave_view(stdscr, input_file):
       top_screen.wave_view_change_time_level(time_level_direction)
     elif value_level_direction:
       top_screen.wave_view_change_value_level(value_level_direction)
+    elif reset_view:
+      top_screen.wave_view_reset()
 
 
 #TODO: Set format from command line.

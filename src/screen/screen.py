@@ -168,6 +168,12 @@ class Screen(object):
     self._window.refresh()
 
 
+  def wave_view_reset(self):
+    """Change wave view to default time and value scale and position."""
+    self._data_display.init_display()
+    self._window.refresh()
+
+
 class MenuDisplay(object):
   """This class controls a subwindow for menu."""
   def __init__(self, window):
