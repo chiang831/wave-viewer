@@ -13,10 +13,10 @@ from screen import screen
 LOG_FILE = '/tmp/wave-view.log'
 
 
-def wave_view(stdscr, input_file):
+def wave_view(stdscr, input_file, args):
   """View wave form."""
-  raw_data = read_raw_data(input_file)
-  one_channel_raw_data = data.OneChannelRawData(raw_data, 0)
+  raw_data = read_raw_data(input_file, args)
+  one_channel_raw_data = data.OneChannelRawData(raw_data, args.selected_channel)
 
   curses.curs_set(0)
   top_screen = screen.Screen(stdscr, one_channel_raw_data)
@@ -73,14 +73,14 @@ def wave_view(stdscr, input_file):
       top_screen.wave_view_reset()
 
 
-#TODO: Set format from command line.
-def read_raw_data(input_file):
+def read_raw_data(input_file, args):
   """Read a file.
 
   The file data format is fixed to 1 channel, 16 bit signed int,
   48000 Hz sampling rate.
 
   @param input_file: The path to the input raw data file.
+  @param args: The parsed args from command line.
 
   @returns: A RawData object.
   """
@@ -88,9 +88,9 @@ def read_raw_data(input_file):
   with open(input_file) as handle:
     content = handle.read()
   data_format = data.DataFormat(
-      num_channels=1,
-      length_bits=16,
-      sampling_rate=48000)
+      num_channels=args.channel,
+      length_bits=args.bit,
+      sampling_rate=args.rate)
   return data.RawData(content, data_format)
 
 
@@ -107,9 +107,18 @@ def parse_args():
                       help='Print debug messages.')
   parser.add_argument('input_file', action='store', default=None, nargs='?',
                       help='Raw data to view. It must be a little-endian\n'
-                           'signed 16-bit, 48000 sampling rate, 1-channel\n'
                            'raw data. Default file is a 5 seconds 1Hz\n'
                            'sine wave.')
+  parser.add_argument('--channel', '-c', action='store', default=1, type=int,
+                      help='Total number of channel. Default is 1.\n')
+  parser.add_argument('--selected-channel', '-s', action='store', default=0,
+                      type=int,
+                      help='The Selected channel. Default is 0,\n'
+                           'which is the first channel.\n')
+  parser.add_argument('--rate', '-r', action='store', default=48000, type=int,
+                      help='Samping rate. Default is 48000.\n')
+  parser.add_argument('--bit', '-b', action='store', default=16, type=int,
+                      help='Sample size in bits. Default is 16.\n')
 
   args = parser.parse_args()
   level = logging.DEBUG if args.debug else logging.INFO
@@ -130,7 +139,7 @@ def main():
   """Main entry point."""
   args = parse_args()
   input_file = get_input_file(args)
-  curses.wrapper(wave_view, input_file)
+  curses.wrapper(wave_view, input_file, args)
 
 if __name__ == '__main__':
   main()
